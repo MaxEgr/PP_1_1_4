@@ -8,83 +8,112 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class UserDaoJDBCImpl implements UserDao {
-    private final Connection connection = Util.getConnection();
+
 
     public UserDaoJDBCImpl() {
 
     }
 
-    public void createUsersTable() {
-        try (Statement statement = connection.createStatement()) {
-            statement.executeUpdate("CREATE TABLE IF NOT EXISTS users.user" +
-                    "(id mediumint not null auto_increment," +
-                    " name VARCHAR(50), " +
-                    "lastname VARCHAR(50), " +
-                    "age tinyint, " +
-                    "PRIMARY KEY (id))");
+    public void createUsersTable() throws NullPointerException {
+        try {
+            Util.connection.setAutoCommit(false);
+            String string = "CREATE TABLE IF NOT EXISTS users.user (id mediumint not null auto_increment, name VARCHAR(50), lastname VARCHAR(50), age tinyint, PRIMARY KEY (id))\n";
+            PreparedStatement preparedStatement = Util.connection.prepareStatement(string);
+            preparedStatement.executeUpdate();
             System.out.println("Таблица создана");
-            connection.commit();
+            Util.connection.commit();
         } catch (SQLException e) {
             try {
-                connection.rollback();
-            } catch (SQLException e2) {
-                e2.printStackTrace();
+                Util.connection.rollback();
+                Util.connection.close();
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
             }
-            e.printStackTrace();
-            System.out.println(e.getMessage());
+            throw new RuntimeException("Ошибка создания table");
+        }
+        finally {
+            try {
+                Util.connection.setAutoCommit(true);
+            } catch (SQLException e) {
+                throw new RuntimeException("Error setAutoCommit(true)");
+            }
         }
     }
-
     public void dropUsersTable() {
-        try (Statement statement = connection.createStatement()) {
-            statement.executeUpdate("Drop table if exists users.user");
+        try {
+            Util.connection.setAutoCommit(false);
+            PreparedStatement preparedStatement = Util.connection.prepareStatement("Drop table if exists users.user");
+            preparedStatement.executeUpdate();
             System.out.println("Таблица удалена");
-            connection.commit();
+            Util.connection.commit();
         } catch (SQLException e) {
             try {
-                connection.rollback();
-            } catch (SQLException e2) {
-                e2.printStackTrace();
+                Util.connection.rollback();
+                Util.connection.close();
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
             }
-            e.printStackTrace();
-            System.out.println(e.getMessage());
+            throw new RuntimeException("Ошибка удаления таблицы");
+        }
+        finally {
+            try {
+                Util.connection.setAutoCommit(true);
+            } catch (SQLException e) {
+                throw new RuntimeException("Error setAutoCommit(true)");
+            }
         }
     }
 
     public void saveUser(String name, String lastName, byte age) {
-        String sql = "INSERT INTO users.user(name, lastname, age) VALUES(?,?,?)";
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+        try {
+            Util.connection.setAutoCommit(false);
+            PreparedStatement preparedStatement = Util.connection.prepareStatement("INSERT INTO users.user(name, lastname, age) VALUES(?,?,?)");
             preparedStatement.setString(1, name);
             preparedStatement.setString(2, lastName);
             preparedStatement.setByte(3, age);
             preparedStatement.executeUpdate();
             System.out.println("User с именем – " + name + " добавлен в базу данных");
-            connection.commit();
+            Util.connection.commit();
         } catch (SQLException e) {
             try {
-                connection.rollback();
-            } catch (SQLException e2) {
-                e2.printStackTrace();
+                Util.connection.rollback();
+                Util.connection.close();
+            } catch (SQLException ex) {
+                System.out.println(" ");
             }
-            e.printStackTrace();
-            System.out.println(e.getMessage());
+            System.out.println(" ");
+        }
+        finally {
+            try {
+                Util.connection.setAutoCommit(true);
+            } catch (SQLException e) {
+                System.out.println(" ");;
+            }
         }
     }
 
     public void removeUserById(long id) {
-        try (Statement statement = connection.createStatement()) {
-            String sql = "DELETE FROM users.user where id";
-            statement.executeUpdate(sql);
+        try {
+            Util.connection.setAutoCommit(false);
+            PreparedStatement preparedStatement = Util.connection.prepareStatement("DELETE FROM users.user where id");
+            preparedStatement.executeUpdate();
             System.out.println("User удален");
-            connection.commit();
+            Util.connection.commit();
         } catch (SQLException e) {
             try {
-                connection.rollback();
-            } catch (SQLException e2) {
-                e2.printStackTrace();
+                Util.connection.rollback();
+                Util.connection.close();
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
             }
-            e.printStackTrace();
-            System.out.println(e.getMessage());
+            throw new RuntimeException("Ошибка удаления user");
+        }
+        finally {
+            try {
+                Util.connection.setAutoCommit(true);
+            } catch (SQLException e) {
+                throw new RuntimeException("Error setAutoCommit(true)");
+            }
         }
     }
 
@@ -92,8 +121,10 @@ public class UserDaoJDBCImpl implements UserDao {
         List<User> allUser = new ArrayList<>();
         String sql = "SELECT id, name, lastName, age from users.user";
 
-        try (Statement statement = connection.createStatement()) {
-            ResultSet resultSet = statement.executeQuery(sql);
+        try {
+            Util.connection.setAutoCommit(true);
+            PreparedStatement preparedStatement = Util.connection.prepareStatement(sql);
+            ResultSet resultSet = preparedStatement.executeQuery(sql);
 
             while (resultSet.next()) {
                 User user = new User();
@@ -103,40 +134,55 @@ public class UserDaoJDBCImpl implements UserDao {
                 user.setAge(resultSet.getByte("age"));
                 allUser.add(user);
             }
-            connection.commit();
-        } catch (Exception e) {
+            Util.connection.setAutoCommit(false);
+        } catch (SQLException e) {
             try {
-                connection.rollback();
-            } catch (SQLException e2) {
-                e2.printStackTrace();
+                Util.connection.close();
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
             }
-            e.printStackTrace();
-            System.out.println(e.getMessage());
+            throw new RuntimeException("Ошибка выделения users");
+        }
+        finally {
+            try {
+                Util.connection.setAutoCommit(true);
+            } catch (SQLException e) {
+                throw new RuntimeException("Error setAutoCommit(true)");
+            }
         }
         return allUser;
     }
 
     public void cleanUsersTable() {
         String sql = "DELETE FROM users.user";
-        try (Statement statement = connection.createStatement()) {
-            statement.executeUpdate(sql);
+        try {
+            Util.connection.setAutoCommit(false);
+            PreparedStatement preparedStatement = Util.connection.prepareStatement(sql);
+            preparedStatement.executeUpdate();
             System.out.println("Таблица очищена");
-            connection.commit();
+            Util.connection.commit();
         } catch (SQLException e) {
             try {
-                connection.rollback();
-            } catch (SQLException e2) {
-                e2.printStackTrace();
+                Util.connection.rollback();
+                Util.connection.close();
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
             }
-            e.printStackTrace();
-            System.out.println(e.getMessage());
+            throw new RuntimeException("Ошибка очистки таблицы");
+        }
+        finally {
+            try {
+                Util.connection.setAutoCommit(true);
+            } catch (SQLException e) {
+                throw new RuntimeException("Error setAutoCommit(true)");
+            }
         }
     }
     @Override
     public void close() {
         try {
-            if (connection != null) {
-                connection.close();
+            if (Util.connection != null) {
+                Util.connection .close();
                 System.out.println("Connection is closed");
             }
         } catch (SQLException e) {

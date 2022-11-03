@@ -30,7 +30,7 @@ public class Main {
 
         userService.dropUsersTable();
 
-        Util.sessionFactory.close();
+        Util.getSessionFactory().close();
 
     }
 }
